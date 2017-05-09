@@ -1,0 +1,111 @@
+- name: Install PHP
+  apt:
+    name="{{ item }}"
+    state=present
+  with_items:
+    - php5-fpm
+    - php5
+    - php-pear
+    - php5-mysql
+    - php5-gd
+    - php5-curl
+  sudo: yes
+
+- name: Create destination folder
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ server_user }}"
+    group: "{{ server_group }}"
+    mode: 0755
+  sudo: yes
+  sudo_user: "{{ server_user }}"
+  with_items:
+    - "/opt/tinker/shared_files/"
+
+- name: Clone git yii repo
+  git:
+    repo: "{{ yii_git_repo }}"
+    dest: "/opt/tinker/shared_files/{{ yii_git_repo | basename }}"
+    version: "{{ yii_git_version  }}"
+    update: yes
+    force: yes
+    recursive: yes
+    accept_hostkey: yes
+  sudo: yes
+  sudo_user: "{{ server_user }}"    
+  when: yii_git_repo is defined
+  tags: update_yii_repo
+
+- name: Composer | Install
+  command: php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+  args:
+    chdir: "/opt/tinker/shared_files/{{ yii_git_repo | basename }}"
+    creates: "/opt/tinker/shared_files/{{ yii_git_repo | basename }}/composer-setup.php"
+  sudo: yes
+  sudo_user: "{{ server_user }}"
+  tags:
+    - update_yii_repo
+
+- name: Composer | Setup
+  command: php composer-setup.php
+  args:
+    chdir: "/opt/tinker/shared_files/{{ yii_git_repo | basename }}"
+    creates: "/opt/tinker/shared_files/{{ yii_git_repo | basename }}/composer.phar"
+  sudo: yes
+  sudo_user: "{{ server_user }}"
+  tags:
+    - update_yii_repo
+
+- name: Install Yii2 dependencies 
+  shell: 'php composer.phar global require "fxp/composer-asset-plugin"'
+  args:
+    chdir: "/opt/tinker/shared_files/{{ yii_git_repo | basename }}"
+  sudo: yes
+  sudo_user: "{{ server_user }}"
+  when: yii_git_repo is defined
+  tags:
+    - update_yii_repo  
+
+- name: Update dependencies for repo. This may take a while . . . . . 
+  shell: "php composer.phar update -n {{ yii_extra_flags }}"
+  args:
+    chdir: "/opt/tinker/shared_files/{{ yii_git_repo | basename }}"
+    creates: "/opt/tinker/shared_files/{{ yii_git_repo | basename }}/vendor" 
+  sudo: yes
+  sudo_user: "{{ server_user }}"
+  retries: 4
+  register: command_result
+  when: yii_git_repo is defined
+  tags: update_yii_repo
+  ignore_errors: yes
+
+- name: Log dependencies errors if any
+  local_action:
+    module: lineinfile
+    dest: /opt/tinker/shared_files/logs/fail.log
+    line: "{{ ansible_date_time.date }} {{ ansible_date_time.time }} {{ command_result.stdout }}"
+    create: yes
+  when: '"Problem 1" in command_result.stdout'
+  tags:
+    - update_services
+    - update_yii_repo
+  sudo: yes
+  sudo_user: "{{ server_user }}"
+
+- name: Prepare application with init
+  shell: "php init --env=Production --overwrite=All"
+  args:
+    chdir: "/opt/tinker/shared_files/{{ yii_git_repo | basename }}"
+  sudo: yes
+  sudo_user: "{{ server_user }}"
+  when: yii_git_repo is defined
+
+- name: Write custom NGINX configuration
+  template:
+    src: vhosts.conf
+    dest: /etc/nginx/sites-enabled/vhosts.conf
+    owner: root
+    group: root
+    mode: 0644
+  sudo: yes

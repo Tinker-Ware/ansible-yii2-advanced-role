@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: aalvz
+  description: Role for installing Yii2 Framework Advanced template for php
+  company: TinkerWare
+  license: GNU GPLv3
+  min_ansible_version: 1.7
+  platforms:
+  - name: Debian
+    versions:
+    - jessie
+  categories:
+  - web-deveopment
+dependencies: []

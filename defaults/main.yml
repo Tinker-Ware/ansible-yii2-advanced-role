@@ -1,0 +1,3 @@
+yii_git_repo: https://github.com/Tinker-Ware/yii2-advanced.git
+yii_git_version: master
+yii_extra_flags: "--no-dev"
