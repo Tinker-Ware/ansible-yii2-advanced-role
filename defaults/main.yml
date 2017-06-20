@@ -1,3 +1,4 @@
-yii_git_repo: https://github.com/Tinker-Ware/yii2-advanced.git
-yii_git_version: master
+repo: https://github.com/Tinker-Ware/yii2-advanced.git
+version: master
 yii_extra_flags: "--no-dev"
+dest: "/opt/tinker/shared_files/project"
