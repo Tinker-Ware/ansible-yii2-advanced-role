@@ -35,6 +35,13 @@
   when: repo is defined
   tags: update_yii_repo
 
+- name: Add git config repo to update remote
+  git_config:
+    name: receive.denyCurrentBranch
+    repo: "{{ dest }}"
+    scope: local
+    value: 'updateInstead'
+
 - name: Composer | Install
   command: php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
   args:
